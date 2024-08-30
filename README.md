@@ -110,4 +110,4 @@ exec:
 Created by [Jarne Geurts](jarne.geurts@kuleuven.be), Laboratory of Reproductive Genomics (Prof. T. Voet), Department of Human Genetics, KU Leuven
 
 ## Citations:
-> ADD DOI
+10.5281/zenodo.13619680 
