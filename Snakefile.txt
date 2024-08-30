@@ -1,0 +1,212 @@
+#configfile: "config.yaml"
+shell.executable("/bin/bash")
+shell.prefix("source ~/.bashrc; ")
+import csv
+
+
+samplenumber = config["parameter"]["amount_of_patients_in_subpool"]
+MOCnumber = config["parameter"]["MOC"]
+poolnumber= config["parameter"]["pool_number"]
+#samplenames= config["parameter"]["sample_names"]
+minMAF = config["parameter"]["minMAF"]
+minCOUNT = config["parameter"]["minCOUNT"]
+# = config["parameter"][""]
+
+bam_dir = config["path"]["Cellranger_output"]
+vcfs = config["path"]["LongRead_vcf_list"]
+results_dir = config["path"]["results"]
+tmp_dir = config["path"]["temp"]
+scripts_dir = config["path"]["scripts"]
+vcf_dir = config["path"]["vcf_file_path"]
+
+vireo_exec = config["exec"]["vireo"]
+cellsnp_exec = config["exec"]["cellsnp-lite"]
+bcftools_exec = config["exec"]["bcftools"]
+python_exec = config["exec"]["python"]
+samtools_exec = config["exec"]["samtools"]
+Rscript_exec = config["exec"]["Rscript"]
+
+
+
+
+
+rule all:
+    input:
+        #merged_vcf="%s/%s/Pool%s/VCF/merged_%s_Pool%s.vcf.gz" % (results_dir,MOCnumber,poolnumber,MOCnumber,poolnumber),
+        #merged_barcode="%s/%s/Pool%s/barcode/merged_barcodelist_%s_Pool%s.gz" % (results_dir,MOCnumber,poolnumber,MOCnumber,poolnumber),
+        #merged_bam_ATAC="%s/%s/Pool%s/bam/merged_bam_ATAC_%s_Pool%s.bam" % (results_dir,MOCnumber,poolnumber,MOCnumber,poolnumber),
+        #merged_bam_GEX="%s/%s/Pool%s/bam/merged_bam_GEX_%s_Pool%s.bam" % (results_dir,MOCnumber,poolnumber,MOCnumber,poolnumber),
+        #cellsnp_base_ATAC_2B="%s/%s/Pool%s/ATAC/2B/cellSNP.base.vcf" % (results_dir,MOCnumber,poolnumber),
+        #cellsnp_base_GEX_2B="%s/%s/Pool%s/GEX/2B/cellSNP.base.vcf" % (results_dir,MOCnumber,poolnumber),
+        #cellsnp_base_ATAC_1A="%s/%s/Pool%s/ATAC/1A/cellSNP.base.vcf.gz" % (results_dir,MOCnumber,poolnumber),
+        #cellsnp_base_GEX_1A="%s/%s/Pool%s/GEX/1A/cellSNP.base.vcf.gz" % (results_dir,MOCnumber,poolnumber),
+        #donor_id_ATAC="%s/%s/Pool%s/ATAC/Vireo/donor_ids.tsv" % (results_dir,MOCnumber,poolnumber),
+        #donor_id_GEX="%s/%s/Pool%s/GEX/Vireo/donor_ids.tsv" % (results_dir,MOCnumber,poolnumber),
+        final_output="%s/%s/Pool%s/Combined/%s_%s_output_less_stringent.csv" % (results_dir,MOCnumber,poolnumber,MOCnumber,poolnumber)
+
+
+
+
+
+rule merge_longread_VCFs:
+    output:
+        merged_vcf="%s/%s/Pool%s/VCF/merged_%s_Pool%s.vcf.gz" % (results_dir,MOCnumber,poolnumber,MOCnumber,poolnumber),
+        log="%s/%s/Pool%s/VCF/samples.log " % (results_dir,MOCnumber,poolnumber)
+
+
+    threads: 8
+    shell:
+        '''
+        echo 'merge longread vcfs'
+        mkdir -p {results_dir}/{MOCnumber}
+        mkdir -p {results_dir}/{MOCnumber}/Pool{poolnumber}
+        mkdir -p {results_dir}/{MOCnumber}/Pool{poolnumber}/VCF
+        {scripts_dir}/merge_vcf.sh {vcf_dir} {vcfs} {bcftools_exec} {output.merged_vcf} {threads} {tmp_dir} {output.log}
+        '''
+
+rule prepare_bam_files:
+    output:
+        merged_barcode="%s/%s/Pool%s/barcode/merged_barcodelist_%s_Pool%s.gz" % (results_dir,MOCnumber,poolnumber,MOCnumber,poolnumber),
+        ATAC= "%s/ATAC.done" % (tmp_dir),
+        GEX= "%s/GEX.done" % (tmp_dir)
+    shell:
+        '''
+        echo 'make dirs'
+        mkdir -p {results_dir}/{MOCnumber}
+        mkdir -p {results_dir}/{MOCnumber}/Pool{poolnumber}
+        mkdir -p {results_dir}/{MOCnumber}/Pool{poolnumber}/bam
+        mkdir -p {results_dir}/{MOCnumber}/Pool{poolnumber}/barcode
+        echo 'get bam'
+        {scripts_dir}/get_bam.sh {bam_dir} {MOCnumber} {poolnumber} {tmp_dir}
+        echo 'merge barcodes'
+        {scripts_dir}/merge_barcodes.sh {tmp_dir} {MOCnumber} {poolnumber} {output.merged_barcode}
+
+        '''
+
+rule prepare_ATAC:
+    input:
+        ATAC= "%s/ATAC.done" % (tmp_dir)
+    output:
+        merged_bam_ATAC="%s/%s/Pool%s/bam/merged_bam_ATAC_%s_Pool%s.bam" % (results_dir,MOCnumber,poolnumber,MOCnumber,poolnumber)
+
+    shell:
+        '''
+        mkdir -p {results_dir}/{MOCnumber}/Pool{poolnumber}/bam
+        {scripts_dir}/merge_ATAC.sh {tmp_dir} {MOCnumber} {poolnumber} {python_exec} {scripts_dir} {samtools_exec} {output.merged_bam_ATAC}
+        rm {tmp_dir}/ATAC.done
+        '''
+rule prepare_GEX:
+    input:
+        GEX= "%s/GEX.done" % (tmp_dir)
+    output:
+        merged_bam_GEX="%s/%s/Pool%s/bam/merged_bam_GEX_%s_Pool%s.bam" % (results_dir,MOCnumber,poolnumber,MOCnumber,poolnumber)
+
+    shell:
+        '''
+        mkdir -p {results_dir}/{MOCnumber}/Pool{poolnumber}/bam
+        {scripts_dir}/merge_GEX.sh {tmp_dir} {MOCnumber} {poolnumber} {python_exec} {scripts_dir} {samtools_exec} {output.merged_bam_GEX}
+        rm {tmp_dir}/GEX.done
+        '''
+
+rule cellsnp_2B_ATAC:
+    input:
+        merged_bam_ATAC="%s/%s/Pool%s/bam/merged_bam_ATAC_%s_Pool%s.bam" % (results_dir,MOCnumber,poolnumber,MOCnumber,poolnumber)
+    output:
+        cellsnp_base_ATAC_2B="%s/%s/Pool%s/ATAC/2B/cellSNP.base.vcf" % (results_dir,MOCnumber,poolnumber)
+    threads: 24
+    shell:
+        '''
+        mkdir -p {results_dir}/{MOCnumber}/Pool{poolnumber}/ATAC
+        mkdir -p {results_dir}/{MOCnumber}/Pool{poolnumber}/ATAC/2B
+        {cellsnp_exec} -s {input.merged_bam_ATAC} -O {results_dir}/{MOCnumber}/Pool{poolnumber}/ATAC/2B -p {threads} --minMAF {minMAF} --minCOUNT {minCOUNT} --cellTAG None --UMItag None
+
+        '''
+
+rule cellsnp_2B_GEX:
+    input:
+        merged_bam_GEX="%s/%s/Pool%s/bam/merged_bam_GEX_%s_Pool%s.bam" % (results_dir,MOCnumber,poolnumber,MOCnumber,poolnumber)
+    output:
+        cellsnp_base_GEX_2B="%s/%s/Pool%s/GEX/2B/cellSNP.base.vcf" % (results_dir,MOCnumber,poolnumber)
+    threads: 24
+    shell:
+        '''
+        mkdir -p {results_dir}/{MOCnumber}/Pool{poolnumber}/GEX
+        mkdir -p {results_dir}/{MOCnumber}/Pool{poolnumber}/GEX/2B
+        {cellsnp_exec} -s {input.merged_bam_GEX} -O {results_dir}/{MOCnumber}/Pool{poolnumber}/GEX/2B -p {threads} --minMAF {minMAF} --minCOUNT {minCOUNT} --cellTAG None --UMItag None
+
+        '''
+
+
+rule cellsnp_1A_ATAC:
+    input:
+        cellsnp_base_ATAC_2B="%s/%s/Pool%s/ATAC/2B/cellSNP.base.vcf" % (results_dir,MOCnumber,poolnumber),
+        merged_barcode="%s/%s/Pool%s/barcode/merged_barcodelist_%s_Pool%s.gz" % (results_dir,MOCnumber,poolnumber,MOCnumber,poolnumber),
+        merged_bam_ATAC="%s/%s/Pool%s/bam/merged_bam_ATAC_%s_Pool%s.bam" % (results_dir,MOCnumber,poolnumber,MOCnumber,poolnumber)
+    output:
+        cellsnp_base_ATAC_1A="%s/%s/Pool%s/ATAC/1A/cellSNP.base.vcf.gz" % (results_dir,MOCnumber,poolnumber)
+    threads: 24
+    shell:
+        '''
+        mkdir -p {results_dir}/{MOCnumber}/Pool{poolnumber}/ATAC
+        mkdir -p {results_dir}/{MOCnumber}/Pool{poolnumber}/ATAC/1A
+        {cellsnp_exec} -s {input.merged_bam_ATAC} -b {input.merged_barcode} -O {results_dir}/{MOCnumber}/Pool{poolnumber}/ATAC/1A -R {input.cellsnp_base_ATAC_2B} -p {threads} --minMAF {minMAF} --minCOUNT {minCOUNT} --cellTAG CB --UMItag None
+        gzip {results_dir}/{MOCnumber}/Pool{poolnumber}/ATAC/1A/cellSNP.base.vcf
+        '''
+
+
+rule cellsnp_1A_GEX:
+    input:
+        cellsnp_base_GEX_2B="%s/%s/Pool%s/GEX/2B/cellSNP.base.vcf" % (results_dir,MOCnumber,poolnumber),
+        merged_barcode="%s/%s/Pool%s/barcode/merged_barcodelist_%s_Pool%s.gz" % (results_dir,MOCnumber,poolnumber,MOCnumber,poolnumber),
+        merged_bam_GEX="%s/%s/Pool%s/bam/merged_bam_GEX_%s_Pool%s.bam" % (results_dir,MOCnumber,poolnumber,MOCnumber,poolnumber)
+    output:
+        cellsnp_base_GEX_1A="%s/%s/Pool%s/GEX/1A/cellSNP.base.vcf.gz" % (results_dir,MOCnumber,poolnumber)
+    threads: 24
+    shell:
+        '''
+        mkdir -p {results_dir}/{MOCnumber}/Pool{poolnumber}/GEX
+        mkdir -p {results_dir}/{MOCnumber}/Pool{poolnumber}/GEX/1A
+        {cellsnp_exec} -s {input.merged_bam_GEX} -b {input.merged_barcode} -O {results_dir}/{MOCnumber}/Pool{poolnumber}/GEX/1A -R {input.cellsnp_base_GEX_2B} -p {threads} --minMAF {minMAF} --minCOUNT {minCOUNT} --cellTAG CB --UMItag None
+        gzip {results_dir}/{MOCnumber}/Pool{poolnumber}/GEX/1A/cellSNP.base.vcf
+        '''
+
+rule vireo_ATAC:
+    input:
+        cellsnp_base_ATAC_1A="%s/%s/Pool%s/ATAC/1A/cellSNP.base.vcf.gz" % (results_dir,MOCnumber,poolnumber),
+        merged_vcf="%s/%s/Pool%s/VCF/merged_%s_Pool%s.vcf.gz" % (results_dir,MOCnumber,poolnumber,MOCnumber,poolnumber)
+
+    output:
+        donor_id_ATAC="%s/%s/Pool%s/ATAC/Vireo/donor_ids.tsv" % (results_dir,MOCnumber,poolnumber)
+    shell:
+        '''
+        mkdir -p {results_dir}/{MOCnumber}/Pool{poolnumber}/ATAC
+        mkdir -p {results_dir}/{MOCnumber}/Pool{poolnumber}/ATAC/Vireo
+        {vireo_exec} --outDir={results_dir}/{MOCnumber}/Pool{poolnumber}/ATAC/Vireo --nDonor={samplenumber} --genoTag=GT --cellData={results_dir}/{MOCnumber}/Pool{poolnumber}/ATAC/1A -d {input.merged_vcf}
+        '''
+
+rule vireo_GEX:
+    input:
+        cellsnp_base_GEX_1A="%s/%s/Pool%s/GEX/1A/cellSNP.base.vcf.gz" % (results_dir,MOCnumber,poolnumber),
+        merged_vcf="%s/%s/Pool%s/VCF/merged_%s_Pool%s.vcf.gz" % (results_dir,MOCnumber,poolnumber,MOCnumber,poolnumber)
+
+    output:
+        donor_id_GEX="%s/%s/Pool%s/GEX/Vireo/donor_ids.tsv" % (results_dir,MOCnumber,poolnumber)
+    shell:
+        '''
+        mkdir -p {results_dir}/{MOCnumber}/Pool{poolnumber}/GEX
+        mkdir -p {results_dir}/{MOCnumber}/Pool{poolnumber}/GEX/Vireo
+        {vireo_exec} --outDir={results_dir}/{MOCnumber}/Pool{poolnumber}/GEX/Vireo --nDonor={samplenumber} --genoTag=GT --cellData={results_dir}/{MOCnumber}/Pool{poolnumber}/GEX/1A -d {input.merged_vcf}
+        '''
+
+rule visualise_separate:
+    input:
+        donor_id_GEX="%s/%s/Pool%s/GEX/Vireo/donor_ids.tsv" % (results_dir,MOCnumber,poolnumber),
+        donor_id_ATAC="%s/%s/Pool%s/ATAC/Vireo/donor_ids.tsv" % (results_dir,MOCnumber,poolnumber)
+    output:
+        final_output="%s/%s/Pool%s/Combined/%s_%s_output_less_stringent.csv" % (results_dir,MOCnumber,poolnumber,MOCnumber,poolnumber)
+    shell:
+        '''
+        mkdir -p {results_dir}/{MOCnumber}/Pool{poolnumber}/Combined
+        {Rscript_exec} {scripts_dir}/plot.R {input.donor_id_GEX} {input.donor_id_ATAC} {MOCnumber} {results_dir} {poolnumber}
+
+        '''

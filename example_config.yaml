@@ -1,0 +1,25 @@
+parameter:
+  amount_of_patients_in_subpool: 8    # only number, in samplesheet, there can be less if needed (not demultiplexed)
+  pool_number: 1 # only number
+  minMAF: 0.1
+  minCOUNT: 20
+  MOC: MOC11
+
+
+path:
+  Cellranger_output:  /staging/leuven/stg_00055/projects/ASAP/Multiome/CellRanger_gut/MOC11
+  LongRead_vcf_list: /staging/leuven/stg_00055/projects/ASAP/Multiome/Demultiplexing/MOC11/samplesheet_Pool1.csv
+  results: /staging/leuven/stg_00055/projects/ASAP/Multiome/Demultiplexing
+  samplesheet: /staging/leuven/stg_00055/projects/ASAP/Multiome/CellRanger_gut/demultiplexing/samplesheet.csv
+  temp: /staging/leuven/stg_00055/projects/ASAP/Multiome/Demultiplexing/MOC11/tmp
+  scripts: /staging/leuven/stg_00055/projects/ASAP/Multiome/Demultiplexing/src
+  vcf_file_path: /staging/leuven/stg_00055/projects/ASAP/gut_data/WGS/vcf_files
+
+
+exec:
+  vireo: /staging/leuven/stg_00055/miniconda3/envs/vireo/bin/vireo
+  cellsnp-lite: /staging/leuven/stg_00055/miniconda3/envs/vireo/bin/cellsnp-lite
+  bcftools: /staging/leuven/stg_00055/miniconda3/envs/vireo/bin/bcftools
+  python: /staging/leuven/stg_00055/miniconda3/envs/VoetEnv/bin/python
+  samtools: /staging/leuven/stg_00055/miniconda3/envs/ASAP/bin/samtools
+  Rscript: /staging/leuven/stg_00055/miniconda3/envs/ASAP/bin/Rscript
