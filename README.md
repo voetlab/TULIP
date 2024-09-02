@@ -48,7 +48,7 @@ The Snakemake pipeline consists out of the following steps:
 
 ## Download
 ```
-git clone https://github.com/voetlab/Multiome_Demultiplexing_WGS
+git clone https://github.com/voetlab/TULIP
 ```
 ## Usage
 To run the Snakemake pipeline, first adapt the parameters and filepaths in the config.yaml file according to your experiment and HPC setup.
