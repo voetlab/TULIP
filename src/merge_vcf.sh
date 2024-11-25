@@ -34,7 +34,7 @@ while IFS= read -r FILE; do
       NEW_FILES="$NEW_FILES $NEW_FILE"
     fi
   else
-    echo "Warning: $NEW_FILE does not exist and will not be added."
+    echo "Warning: $ORIGINAL_FILE does not exist and will not be added."
   fi
 done < "$FILE_LIST"
 
